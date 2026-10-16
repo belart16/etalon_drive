@@ -13,16 +13,16 @@ ErrorDocument 404 /404.html
 # --- Перенаправления на один основной адрес ---
 # Сначала попробуйте настройки перенаправления в панели хостинга (HTTPS, второй домен).
 # Если их нет — уберите # у строк ниже. ВКЛЮЧАТЬ ТОЛЬКО ПОСЛЕ подключения SSL (https)
-# и замены DOMAIN.invalid на основной домен. Правило отправляет http://, www. и второй
-# домен на https://основной-домен с кодом 301 (поисковики склеят адреса).
+# Правило отправляет http://, www. и второй домен (etalon-drive.ru)
+# на https://etalondrive.ru с кодом 301 (поисковики склеят адреса).
 # Если после включения страница «зациклилась» (ERR_TOO_MANY_REDIRECTS) — хостинг
 # принимает https на прокси: замените строку с %{HTTPS} на
 #   RewriteCond %{HTTP:X-Forwarded-Proto} !https [OR]
 # <IfModule mod_rewrite.c>
 #   RewriteEngine On
 #   RewriteCond %{HTTPS} off [OR]
-#   RewriteCond %{HTTP_HOST} !^DOMAIN.invalid$ [NC]
-#   RewriteRule ^ https://DOMAIN.invalid%{REQUEST_URI} [L,R=301]
+#   RewriteCond %{HTTP_HOST} !^etalondrive\.ru$ [NC]
+#   RewriteRule ^ https://etalondrive.ru%{REQUEST_URI} [L,R=301]
 #   # /index.html -> /
 #   RewriteCond %{THE_REQUEST} \s/index\.html[\s?] [NC]
 #   RewriteRule ^index\.html$ / [L,R=301]

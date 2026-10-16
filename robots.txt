@@ -1,7 +1,6 @@
-# DOMAIN.invalid — заменить на реальный домен
 User-agent: *
 Allow: /
 Disallow: /README.md
 Disallow: /404.html
 
-Sitemap: https://DOMAIN.invalid/sitemap.xml
+Sitemap: https://etalondrive.ru/sitemap.xml

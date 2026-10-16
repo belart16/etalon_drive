@@ -21,7 +21,11 @@ const SITE_CONFIG = {
   //       form_submit (этап 2), phone_click, email_click, cfg_request
   metrikaId: '',
 
-  // Мессенджеры компании — появятся в окне отправки заявки и в карточке контактов.
+  // Способы отправки в окне «Как отправить заявку?» (на будущее — сейчас только почта)
+  messengersInForm: false, // true — показывать мессенджеры компании (заполните messengers ниже)
+  shareInForm: false,      // true — показывать системное меню «Поделиться» (телефоны)
+
+  // Мессенджеры компании — появятся в карточке контактов, а при messengersInForm: true — и в окне отправки.
   // Пустые не показываются.
   //   telegram: 'https://t.me/имя_аккаунта'
   //   whatsapp: '79991234567'            (номер только цифрами, текст заявки подставится сам)
@@ -459,10 +463,10 @@ const SITE_CONFIG = {
     if (M.whatsapp) msgBox.append(optLink('WhatsApp', 'текст подставится сам', `https://wa.me/${String(M.whatsapp).replace(/\D/g, '')}?text=${enc(lastText)}`, 'whatsapp', { icon: 'i-chat' }));
     if (M.telegram) msgBox.append(optLink('Telegram', 'текст скопируется — вставьте в чат', M.telegram, 'telegram', { icon: 'i-chat', copyFirst: true }));
     if (M.max) msgBox.append(optLink('MAX', 'текст скопируется — вставьте в чат', M.max, 'max', { icon: 'i-chat', copyFirst: true }));
-    $('[data-group="messengers"]', sendDlg).hidden = !msgBox.children.length;
+    $('[data-group="messengers"]', sendDlg).hidden = !SITE_CONFIG.messengersInForm || !msgBox.children.length;
 
     // Системное меню «Поделиться» (телефоны, планшеты, часть ПК)
-    const canShare = typeof navigator.share === 'function';
+    const canShare = SITE_CONFIG.shareInForm && typeof navigator.share === 'function';
     const shareGroup = $('[data-group="share"]', sendDlg);
     shareGroup.hidden = !canShare;
     // На сенсорных устройствах — первым пунктом, на ПК — после почты
@@ -474,6 +478,7 @@ const SITE_CONFIG = {
 
     $('.send-copy__ok', sendDlg).textContent = '';
     sendDlg.showModal();
+    document.documentElement.classList.add('is-locked'); // страница под окном не прокручивается
   }
 
   function channelName(ch) {
@@ -509,6 +514,7 @@ const SITE_CONFIG = {
       setTimeout(() => afterChannel(ch), 0);
     });
     $('.send-dialog__close', sendDlg).addEventListener('click', () => sendDlg.close());
+    sendDlg.addEventListener('close', () => document.documentElement.classList.remove('is-locked'));
   }
 
   /* ---------- Прочее ---------- */
