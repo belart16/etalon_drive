@@ -1,0 +1,79 @@
+# =========================================================
+#  Настройки сервера Apache (хостинг nic.ru и большинство
+#  российских хостингов). Если сервер не Apache — файл
+#  просто игнорируется.
+# =========================================================
+
+Options -Indexes
+DirectoryIndex index.html
+
+# --- Своя страница 404 ---
+ErrorDocument 404 /404.html
+
+# --- Перенаправления на один основной адрес ---
+# Сначала попробуйте настройки перенаправления в панели хостинга (HTTPS, второй домен).
+# Если их нет — уберите # у строк ниже. ВКЛЮЧАТЬ ТОЛЬКО ПОСЛЕ подключения SSL (https)
+# и замены DOMAIN.invalid на основной домен. Правило отправляет http://, www. и второй
+# домен на https://основной-домен с кодом 301 (поисковики склеят адреса).
+# Если после включения страница «зациклилась» (ERR_TOO_MANY_REDIRECTS) — хостинг
+# принимает https на прокси: замените строку с %{HTTPS} на
+#   RewriteCond %{HTTP:X-Forwarded-Proto} !https [OR]
+# <IfModule mod_rewrite.c>
+#   RewriteEngine On
+#   RewriteCond %{HTTPS} off [OR]
+#   RewriteCond %{HTTP_HOST} !^DOMAIN.invalid$ [NC]
+#   RewriteRule ^ https://DOMAIN.invalid%{REQUEST_URI} [L,R=301]
+#   # /index.html -> /
+#   RewriteCond %{THE_REQUEST} \s/index\.html[\s?] [NC]
+#   RewriteRule ^index\.html$ / [L,R=301]
+# </IfModule>
+
+# --- Закрыть служебные файлы ---
+<FilesMatch "^(README\.md|\.git.*|\.nojekyll)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+RedirectMatch 404 /\.git
+
+# --- Типы файлов ---
+<IfModule mod_mime.c>
+  AddType image/webp .webp
+  AddType font/woff2 .woff2
+  AddType application/manifest+json .webmanifest
+  AddType image/svg+xml .svg
+  AddCharset utf-8 .html .css .js .xml .txt .webmanifest
+</IfModule>
+
+# --- Сжатие (ускоряет загрузку текста в 3–5 раз) ---
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml application/javascript application/json application/xml application/manifest+json image/svg+xml
+</IfModule>
+
+# --- Кэширование в браузере ---
+# CSS и JS подключены с ?v=номер: при изменении файла увеличьте номер в index.html.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault "access plus 1 hour"
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/webp "access plus 30 days"
+  ExpiresByType image/png "access plus 30 days"
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType image/svg+xml "access plus 30 days"
+  ExpiresByType image/x-icon "access plus 30 days"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType application/manifest+json "access plus 1 day"
+</IfModule>
+
+# --- Базовые заголовки безопасности ---
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>

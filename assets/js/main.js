@@ -6,25 +6,35 @@
    НАСТРОЙКИ — заполните перед публикацией
    --------------------------------------------------------- */
 const SITE_CONFIG = {
-  // Куда приходят заявки, если сервис формы не подключён (откроется почтовая программа посетителя)
+  // Куда отправляются заявки
   email: 'mail@npoeta.ru',
+  phone: '+7 (495) 137-77-50',
 
-  // Сервис приёма заявок (рекомендуется). Пример для Web3Forms:
-  //   formEndpoint: 'https://api.web3forms.com/submit', formAccessKey: 'ВАШ_КЛЮЧ'
-  // Пример для Formspree: formEndpoint: 'https://formspree.io/f/ВАШ_ID', formAccessKey: ''
-  // Или адрес собственного обработчика на сервере (например, /send.php).
+  // Этап 2: адрес собственного обработчика на сервере (например, '/send.php').
+  // Пока пусто — после «Отправить» посетитель выбирает, откуда отправить заявку
+  // (почта, Gmail, Яндекс, Mail.ru, мессенджеры) — сайт данные не принимает.
   formEndpoint: '',
   formAccessKey: '',
 
-  // Яндекс Метрика: номер счётчика (цели: form_submit, phone_click, email_click, cfg_request)
+  // Яндекс Метрика: номер счётчика
+  // Цели: lead_prepare (заполнил форму), lead_channel (выбрал способ отправки),
+  //       form_submit (этап 2), phone_click, email_click, cfg_request
   metrikaId: '',
 
-  // Соцсети и мессенджеры. Пустые ссылки на сайте не показываются.
+  // Мессенджеры компании — появятся в окне отправки заявки и в карточке контактов.
+  // Пустые не показываются.
+  //   telegram: 'https://t.me/имя_аккаунта'
+  //   whatsapp: '79991234567'            (номер только цифрами, текст заявки подставится сам)
+  //   max:      'https://max.ru/...'     (ссылка на чат/профиль компании в MAX)
+  messengers: {
+    telegram: '',
+    whatsapp: '',
+    max: '',
+  },
+
+  // Прочие соцсети — только в карточке контактов
   socials: [
-    { label: 'Telegram', url: '' },
-    { label: 'WhatsApp', url: '' },
     { label: 'ВКонтакте', url: '' },
-    { label: 'MAX', url: '' },
   ],
 };
 
@@ -45,8 +55,8 @@ const SITE_CONFIG = {
     })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js', 'ym');
     window.ym(id, 'init', { clickmap: true, trackLinks: true, accurateTrackBounce: true, webvisor: true });
   }
-  function goal(name) {
-    try { if (SITE_CONFIG.metrikaId && window.ym) window.ym(SITE_CONFIG.metrikaId, 'reachGoal', name); } catch (e) {}
+  function goal(name, params) {
+    try { if (SITE_CONFIG.metrikaId && window.ym) window.ym(SITE_CONFIG.metrikaId, 'reachGoal', name, params); } catch (e) {}
   }
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goal]');
@@ -76,6 +86,61 @@ const SITE_CONFIG = {
   });
   $$('a', nav).forEach((a) => a.addEventListener('click', closeMenu));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+
+  /* ---------- Прокрутка к блокам с учётом шапки ----------
+     «Контакты» → сразу к карточкам контактов и формы (без заголовка секции),
+     кнопки заявки → к самой форме. Если блок помещается в экран — ставим его по центру. */
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const SCROLL_TARGETS = { contacts: '.grid-contacts' };
+  const mobileBar = $('.mobile-bar');
+
+  function resolveTarget(id) {
+    if (!id || id === 'top') return document.body;
+    return SCROLL_TARGETS[id] ? $(SCROLL_TARGETS[id]) : document.getElementById(id);
+  }
+  function targetTop(el) {
+    if (el === document.body) return 0;
+    const offTop = header.getBoundingClientRect().height + 16;
+    const offBottom = (mobileBar && getComputedStyle(mobileBar).display !== 'none' ? mobileBar.offsetHeight : 0) + 16;
+    // offsetTop не учитывает анимацию появления (transform), поэтому позиция точная
+    let y = 0; for (let n = el; n; n = n.offsetParent) y += n.offsetTop;
+    const h = el.offsetHeight;
+    const avail = window.innerHeight - offTop - offBottom;
+    let top = y - offTop;
+    if (h < avail) top -= (avail - h) / 2; // помещается — центрируем
+    return Math.max(0, Math.round(top));
+  }
+  function scrollToEl(el, smooth) {
+    const behavior = smooth && !reduceMotion ? 'smooth' : 'auto';
+    window.scrollTo({ top: targetTop(el), behavior });
+    // Картинки выше могут догрузиться во время прокрутки и сдвинуть блок — доводим позицию
+    const fix = () => {
+      const want = targetTop(el);
+      if (Math.abs(window.scrollY - want) > 24) window.scrollTo({ top: want, behavior: 'auto' });
+    };
+    if ('onscrollend' in window && behavior === 'smooth') window.addEventListener('scrollend', fix, { once: true });
+    else setTimeout(fix, behavior === 'smooth' ? 900 : 300);
+  }
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    const id = a.getAttribute('href').slice(1);
+    const el = resolveTarget(id);
+    if (!el) return;
+    e.preventDefault();
+    history.pushState(null, '', id ? '#' + id : location.pathname);
+    scrollToEl(el, true);
+    // На компьютере ставим курсор в первое пустое поле формы
+    if (id === 'lead-form' && matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      setTimeout(() => { const f = $('#lead-form input[name="name"]'); if (f && !f.value) f.focus({ preventScroll: true }); }, reduceMotion ? 0 : 700);
+    }
+  });
+  // Переход по ссылке с якорем с другой страницы (например, /#contacts)
+  window.addEventListener('load', () => {
+    const id = location.hash.slice(1);
+    const el = id && resolveTarget(decodeURIComponent(id));
+    if (el) setTimeout(() => scrollToEl(el, false), 50);
+  });
 
   /* ---------- Подсветка активного пункта меню ---------- */
   const navLinks = $$('.nav > a[href^="#"]');
@@ -201,7 +266,12 @@ const SITE_CONFIG = {
 
   /* ---------- Соцсети ---------- */
   const socialsBox = $('#socials');
-  const socials = (SITE_CONFIG.socials || []).filter((s) => s.url);
+  const M = SITE_CONFIG.messengers || {};
+  const socials = [
+    { label: 'Telegram', url: M.telegram },
+    { label: 'WhatsApp', url: M.whatsapp ? 'https://wa.me/' + String(M.whatsapp).replace(/\D/g, '') : '' },
+    { label: 'MAX', url: M.max },
+  ].concat(SITE_CONFIG.socials || []).filter((s) => s.url);
   if (socialsBox && socials.length) {
     socials.forEach((s) => {
       const a = document.createElement('a');
@@ -276,7 +346,6 @@ const SITE_CONFIG = {
       'Мощность двигателя, кВт': f.motor_power.value,
       'Тип двигателя': f.motor_type.value,
       'Сообщение': f.message.value.trim(),
-      'Страница': location.href,
     };
   }
   function showStatus(text, type) {
@@ -323,13 +392,124 @@ const SITE_CONFIG = {
       return;
     }
 
-    // Вариант 2 (запасной): письмо через почтовую программу посетителя
-    const body = Object.entries(data).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');
-    const href = `mailto:${SITE_CONFIG.email}?subject=${encodeURIComponent('Заявка с сайта ЭТАЛОН ДРАЙВ: ' + data['Тема'])}&body=${encodeURIComponent(body)}`;
-    goal('form_submit');
-    window.location.href = href;
-    showStatus('Открываем почтовую программу с готовым письмом. Если она не открылась — напишите на ' + SITE_CONFIG.email + ' или позвоните +7 (495) 137-77-50.', 'ok');
+    // Этап 1: посетитель сам выбирает, откуда отправить заявку
+    openSendDialog(data);
   });
+
+  /* ---------- Окно «Как отправить заявку?» ---------- */
+  const sendDlg = $('#send-dialog');
+  const enc = encodeURIComponent;
+  let lastText = '';
+
+  function leadText(data, forMessenger) {
+    const lines = Object.entries(data).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`);
+    if (forMessenger) {
+      lines.unshift('Заявка с сайта ЭТАЛОН ДРАЙВ', '');
+      lines.push('', `Для: НПО «ЭТА», ${SITE_CONFIG.email}, ${SITE_CONFIG.phone}`);
+    }
+    return lines.join('\n');
+  }
+
+  // Синхронное копирование: срабатывает внутри клика, до перехода по ссылке
+  function copySync(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    (sendDlg && sendDlg.open ? sendDlg : document.body).append(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (err) {}
+    ta.remove(); return ok;
+  }
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { return copySync(text); }
+  }
+
+  function optLink(label, hint, href, channel, opts = {}) {
+    const a = document.createElement('a');
+    a.className = 'send-opt'; a.href = href; a.dataset.channel = channel;
+    if (!opts.sameTab) { a.target = '_blank'; a.rel = 'noopener'; }
+    a.innerHTML = `<span class="send-opt__ico"><svg class="ico"><use href="#${opts.icon || 'i-mail'}"/></svg></span><span class="send-opt__txt"><b></b><small></small></span>`;
+    $('b', a).textContent = label; $('small', a).textContent = hint;
+    if (opts.copyFirst) a.dataset.copy = '1';
+    return a;
+  }
+
+  function openSendDialog(data) {
+    goal('lead_prepare');
+    const to = SITE_CONFIG.email;
+    const subj = 'Заявка с сайта ЭТАЛОН ДРАЙВ: ' + data['Тема'];
+    const body = leadText(data, false);
+    lastText = leadText(data, true);
+
+    if (!sendDlg || typeof sendDlg.showModal !== 'function') {
+      window.location.href = `mailto:${to}?subject=${enc(subj)}&body=${enc(body)}`;
+      return;
+    }
+
+    // Почта
+    const mailBox = $('#send-mail'); mailBox.textContent = '';
+    mailBox.append(
+      optLink('Gmail', 'mail.google.com', `https://mail.google.com/mail/?view=cm&fs=1&to=${enc(to)}&su=${enc(subj)}&body=${enc(body)}`, 'gmail'),
+      optLink('Яндекс Почта', 'mail.yandex.ru', `https://mail.yandex.ru/compose?to=${enc(to)}&subject=${enc(subj)}&body=${enc(body)}`, 'yandex'),
+      optLink('Почта Mail.ru', 'e.mail.ru', `https://e.mail.ru/compose/?to=${enc(to)}&subject=${enc(subj)}&body=${enc(body)}`, 'mailru'),
+      optLink('Outlook', 'outlook.live.com', `https://outlook.live.com/mail/0/deeplink/compose?to=${enc(to)}&subject=${enc(subj)}&body=${enc(body)}`, 'outlook'),
+      optLink('Почтовая программа', 'Outlook, Apple Mail, Thunderbird…', `mailto:${to}?subject=${enc(subj)}&body=${enc(body)}`, 'mailto', { sameTab: true })
+    );
+
+    // Мессенджеры компании (если указаны в настройках)
+    const msgBox = $('#send-messengers'); msgBox.textContent = '';
+    if (M.whatsapp) msgBox.append(optLink('WhatsApp', 'текст подставится сам', `https://wa.me/${String(M.whatsapp).replace(/\D/g, '')}?text=${enc(lastText)}`, 'whatsapp', { icon: 'i-chat' }));
+    if (M.telegram) msgBox.append(optLink('Telegram', 'текст скопируется — вставьте в чат', M.telegram, 'telegram', { icon: 'i-chat', copyFirst: true }));
+    if (M.max) msgBox.append(optLink('MAX', 'текст скопируется — вставьте в чат', M.max, 'max', { icon: 'i-chat', copyFirst: true }));
+    $('[data-group="messengers"]', sendDlg).hidden = !msgBox.children.length;
+
+    // Системное меню «Поделиться» (телефоны, планшеты, часть ПК)
+    const canShare = typeof navigator.share === 'function';
+    const shareGroup = $('[data-group="share"]', sendDlg);
+    shareGroup.hidden = !canShare;
+    // На сенсорных устройствах — первым пунктом, на ПК — после почты
+    const touch = matchMedia('(pointer: coarse)').matches;
+    if (canShare) {
+      if (touch) $('.send-dialog__sub', sendDlg).after(shareGroup);
+      else $('[data-group="mail"]', sendDlg).after(shareGroup);
+    }
+
+    $('.send-copy__ok', sendDlg).textContent = '';
+    sendDlg.showModal();
+  }
+
+  function channelName(ch) {
+    return { gmail: 'Gmail', yandex: 'Яндекс Почте', mailru: 'Почте Mail.ru', outlook: 'Outlook', mailto: 'почтовой программе', whatsapp: 'WhatsApp', telegram: 'Telegram', max: 'MAX', share: 'выбранном приложении' }[ch] || ch;
+  }
+  function afterChannel(ch) {
+    goal('lead_channel', { channel: ch });
+    sendDlg.close();
+    let msg = `Заявка открыта в ${channelName(ch)}. Проверьте текст и нажмите «Отправить» — после этого она придёт к нам.`;
+    if (ch === 'telegram' || ch === 'max') msg = `Текст заявки скопирован. В открывшемся чате ${channelName(ch)} вставьте его и отправьте.`;
+    if (ch === 'mailto') msg = 'Открываем почтовую программу. Если ничего не открылось — нажмите «Отправить заявку» ещё раз и выберите Gmail, Яндекс или Mail.ru.';
+    showStatus(msg, 'ok');
+  }
+
+  if (sendDlg) {
+    sendDlg.addEventListener('click', async (e) => {
+      if (e.target === sendDlg) { sendDlg.close(); return; }
+      const opt = e.target.closest('[data-channel]');
+      if (!opt) return;
+      const ch = opt.dataset.channel;
+      if (ch === 'copy') {
+        const ok = await copyText(lastText);
+        $('.send-copy__ok', sendDlg).textContent = ok ? 'Скопировано' : 'Не удалось скопировать';
+        goal('lead_channel', { channel: 'copy' });
+        return;
+      }
+      if (ch === 'share') {
+        try { await navigator.share({ title: 'Заявка с сайта ЭТАЛОН ДРАЙВ', text: lastText }); afterChannel('share'); }
+        catch (err) { /* посетитель закрыл меню — ничего не делаем */ }
+        return;
+      }
+      if (opt.dataset.copy) copySync(lastText); // копируем до того, как откроется чат
+      setTimeout(() => afterChannel(ch), 0);
+    });
+    $('.send-dialog__close', sendDlg).addEventListener('click', () => sendDlg.close());
+  }
 
   /* ---------- Прочее ---------- */
   const y = $('#year'); if (y) y.textContent = new Date().getFullYear();

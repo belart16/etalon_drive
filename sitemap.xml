@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DOMAIN.invalid — заменить на реальный домен. Дату lastmod обновлять при заметных изменениях сайта. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://DOMAIN.invalid/</loc>
+    <lastmod>2026-10-16</lastmod>
+  </url>
+</urlset>
